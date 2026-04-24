@@ -99,7 +99,7 @@ class LoginScreen extends StatelessWidget {
 
               // Botão Principal de Login (O destaque da tela)
               SizedBox(
-                // Aqui fica a altura que discutimos. Se 68px ficar gigante no emulador, baixe para 56.
+                //  Se 68px ficar gigante no emulador, baixe para 56.
                 height: 60,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(

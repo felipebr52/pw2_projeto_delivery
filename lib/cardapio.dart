@@ -153,6 +153,7 @@ class CardapioScreen extends StatelessWidget {
           //botão carrinho
         ],
       ),
+      //O botão flutuante, que vai virar o carrinho
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showDialog(
