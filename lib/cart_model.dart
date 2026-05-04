@@ -14,10 +14,27 @@ class CartItem {
   });
 }
 
+class Order {
+  final int id;
+  final DateTime date;
+  final List<CartItem> items;
+  final double total;
+
+  Order({
+    required this.id,
+    required this.date,
+    required this.items,
+    required this.total,
+  });
+}
+
 class CartModel extends ChangeNotifier {
   final List<CartItem> _items = [];
+  final List<Order> _orders = [];
+  int _nextOrderId = 1;
 
   List<CartItem> get items => List.unmodifiable(_items);
+  List<Order> get orders => List.unmodifiable(_orders);
 
   double get total =>
       _items.fold(0, (sum, item) => sum + item.preco * item.quantidade);
@@ -50,6 +67,19 @@ class CartModel extends ChangeNotifier {
 
   void clear() {
     _items.clear();
+    notifyListeners();
+  }
+
+  void checkout() {
+    if (_items.isEmpty) return;
+    final order = Order(
+      id: _nextOrderId++,
+      date: DateTime.now(),
+      items: List.from(_items),
+      total: total,
+    );
+    _orders.add(order);
+    clear();
     notifyListeners();
   }
 }

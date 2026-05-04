@@ -3,7 +3,11 @@ import 'package:proj_pw2/main.dart';
 import 'package:proj_pw2/carrinho.dart';
 import 'package:provider/provider.dart';
 import 'package:proj_pw2/cart_model.dart';
+import 'package:proj_pw2/pedidos.dart';
+import 'package:proj_pw2/game_repository.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 //Classe que define o que é um 'jogo'
 class Game {
@@ -18,6 +22,16 @@ class Game {
     required this.preco,
     required this.imagemPath, // <-- Adicione no construtor
   });
+
+  // Factory para criar Game a partir de JSON
+  factory Game.fromJson(Map<String, dynamic> json) {
+    return Game(
+      titulo: json['titulo'],
+      categoria: json['categoria'],
+      preco: json['preco'].toDouble(),
+      imagemPath: json['imagemPath'],
+    );
+  }
 }
 
 //define o Card que exibe o jogo
@@ -134,7 +148,7 @@ class GameCard extends StatelessWidget {
 }
 
 // 2. A Tela Principal (O Cardápio)
-// 2. A Tela Principal (O Cardápio) - AGORA COMO STATEFUL
+// 2. A Tela Principal (O Cardápio) 
 class CardapioScreen extends StatefulWidget {
   const CardapioScreen({super.key});
 
@@ -146,18 +160,14 @@ class _CardapioScreenState extends State<CardapioScreen> {
   // === VARIÁVEIS DE CONTROLE DO TIMER E DA BARRA ===
   bool _mostrarBarraTopo = true;
   Timer? _timerInatividade;
+  String _selectedCategory = "Todos";
+
+  // === VARIÁVEIS PARA OS JOGOS ===
+  List<Game> _allGames = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   
-  final List<Game> jogos = [
-    Game(
-      titulo: "CyberPunk 2077",
-      categoria: "RPG",
-      preco: 199.90,
-      imagemPath: "assets/images/cyberpunk77.JPG",
-    ),
-    
-  ];
-
   final List<String> categorias = [
     "Todos",
     "Ofertas",
@@ -167,10 +177,33 @@ class _CardapioScreenState extends State<CardapioScreen> {
     "FPS",
   ];
 
+  List<Game> get filteredJogos {
+    if (_selectedCategory == "Todos") return _allGames;
+    if (_selectedCategory == "Ofertas") return _allGames.where((jogo) => jogo.preco < 200).toList();
+    if (_selectedCategory == "Lançamentos") return _allGames.where((jogo) => jogo.titulo.contains("2023") || jogo.titulo.contains("VI")).toList();
+    return _allGames.where((jogo) => jogo.categoria == _selectedCategory).toList();
+  }
+
+  Future<void> loadGames() async {
+    try {
+      _allGames = await GameRepository().getAllGames();
+      setState(() {
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Erro ao carregar jogos: $e';
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _iniciarTimer(); // Inicia a contagem assim que entra na tela
+    loadGames(); // Carrega os jogos do "banco"
   }
 
   void _iniciarTimer() {
@@ -184,6 +217,7 @@ class _CardapioScreenState extends State<CardapioScreen> {
     _timerInatividade = Timer(const Duration(seconds: 3), () {
       setState(() {
         _mostrarBarraTopo = false; // Esconde a barra, aparece o botão flutuante
+        ScaffoldMessenger.of(context).hideCurrentSnackBar(); // Esconde qualquer SnackBar aberto para não atrapalhar a nova UI,
       });
     });
   }
@@ -217,13 +251,25 @@ class _CardapioScreenState extends State<CardapioScreen> {
                 ),
                 centerTitle: true,
                 elevation: 0,
-                leading: IconButton(
+                leading: PopupMenuButton<String>(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () {
-                    // Lembre de importar o LoginScreen se for usar aqui
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-                   
+                  onSelected: (value) {
+                    if (value == 'login') {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+                    } else if (value == 'pedidos') {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const PedidoScreen()));
+                    }
                   },
+                  itemBuilder: (BuildContext context) => [
+                    const PopupMenuItem<String>(
+                      value: 'login',
+                      child: Text('Voltar ao Login'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'pedidos',
+                      child: Text('Ir para Pedidos'),
+                    ),
+                  ],
                 ),
                 actions: [
                   Consumer<CartModel>(builder: (context, cart, _) {
@@ -332,28 +378,36 @@ class _CardapioScreenState extends State<CardapioScreen> {
                 itemCount: categorias.length,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemBuilder: (context, index) {
-                  bool isSelected = index == 0;
-                  return Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFFFF5E00)
-                          : const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Center(
-                      child: Text(
-                        categorias[index],
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontFamily: 'Inter',
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                  final categoria = categorias[index];
+                  bool isSelected = categoria == _selectedCategory;
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = categoria;
+                      });
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFFF5E00)
+                            : const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Center(
+                        child: Text(
+                          categoria,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontFamily: 'Inter',
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
                       ),
                     ),
@@ -368,18 +422,44 @@ class _CardapioScreenState extends State<CardapioScreen> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GridView.builder(
-                  itemCount: jogos.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemBuilder: (context, index) {
-                    return GameCard(jogo: jogos[index]);
-                  },
-                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _errorMessage != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: Colors.white70),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _isLoading = true;
+                                      _errorMessage = null;
+                                    });
+                                    loadGames();
+                                  },
+                                  child: const Text('Tentar Novamente'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : GridView.builder(
+                            itemCount: filteredJogos.length,
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.75,
+                            ),
+                            itemBuilder: (context, index) {
+                              return GameCard(jogo: filteredJogos[index]);
+                            },
+                          ),
               ),
             ),
           ],

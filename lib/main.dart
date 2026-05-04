@@ -18,7 +18,7 @@ class GamesJaApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Games Já!',
         theme: ThemeData(
-          fontFamily: 'Inter', // A fonte base que definimos
+          fontFamily: 'Inter', // A fonte 
           brightness: Brightness.dark, // Força o tema escuro
         ),
         home: const LoginScreen(),

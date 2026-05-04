@@ -177,8 +177,10 @@ class _CarrinhoScreenState extends State<CarrinhoScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: Provider.of<CartModel>(context).items.isEmpty ? null : () {
+                    final cart = Provider.of<CartModel>(context, listen: false);
+                    cart.checkout();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Indo para o pagamento...')),
+                      const SnackBar(content: Text('Pedido realizado com sucesso!')),
                     );
                   },
                   child: const Text(
