@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:proj_pw2/cardapio.dart';
+import 'package:provider/provider.dart';
+import 'package:proj_pw2/cart_model.dart';
 
 void main() {
   runApp(const GamesJaApp());
@@ -10,14 +12,17 @@ class GamesJaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Games Já!',
-      theme: ThemeData(
-        fontFamily: 'Inter', // A fonte base que definimos
-        brightness: Brightness.dark, // Força o tema escuro
+    return ChangeNotifierProvider(
+      create: (_) => CartModel(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Games Já!',
+        theme: ThemeData(
+          fontFamily: 'Inter', // A fonte base que definimos
+          brightness: Brightness.dark, // Força o tema escuro
+        ),
+        home: const LoginScreen(),
       ),
-      home: const LoginScreen(),
     );
   }
 }
