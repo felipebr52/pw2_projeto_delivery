@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFF6B227B); // Roxo
-  static const Color accentColor = Color(0xFFFF5E00); // Laranja
-  static const Color backgroundColor = Color(0xFF121212); // Fundo Escuro principal
-  static const Color cardColor = Color(0xFF2A2A2A); // Fundo de cards
-  static const Color cardColorLight = Color(0xFF3A3A3A); // Fundo mais claro para imagens
+  static const Color primaryColor = Color(0xFF6a127e); // Roxo Web
+  static const Color accentColor = Color(0xFFc95f1d); // Laranja Web
+  static const Color backgroundColor = Color(0xFF1c0422); // Fundo Escuro Web
+  static const Color cardColor = Color(0x1AFFFFFF); // rgba(255, 255, 255, 0.1) Glass
+  static const Color cardColorLight = Color(0x33FFFFFF); // Mais claro
 
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
       primaryColor: primaryColor,
-      scaffoldBackgroundColor: backgroundColor,
+      scaffoldBackgroundColor: backgroundColor, // Modificaremos via Container gradient dps
       fontFamily: 'Inter',
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
+        backgroundColor: Color(0xB31C0422), // rgba(28,4,34,0.7)
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
@@ -32,6 +32,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
+          elevation: 8,
+          shadowColor: accentColor.withOpacity(0.5),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -41,6 +43,10 @@ class AppTheme {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: accentColor, width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       ),

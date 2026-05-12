@@ -1,124 +1,127 @@
 import 'package:flutter/material.dart';
-import 'package:proj_pw2/models/order.dart';
+import 'package:proj_pw2/services/api_service.dart';
 import 'package:proj_pw2/theme/app_theme.dart';
+import 'package:intl/intl.dart';
 
-class ReciboScreen extends StatelessWidget {
-  final Order order;
+class ReciboScreen extends StatefulWidget {
+  final int pedidoId;
+  const ReciboScreen({super.key, required this.pedidoId});
 
-  const ReciboScreen({super.key, required this.order});
+  @override
+  State<ReciboScreen> createState() => _ReciboScreenState();
+}
+
+class _ReciboScreenState extends State<ReciboScreen> {
+  late Future<Map<String, dynamic>?> _reciboFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reciboFuture = ApiService.getRecibo(widget.pedidoId);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('RECIBO DO PEDIDO'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
+      appBar: AppBar(title: const Text('RECIBO')),
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: _reciboFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError || !snapshot.hasData) {
+            return const Center(child: Text('Recibo não encontrado ou erro.', style: TextStyle(color: Colors.red)));
+          }
+
+          final dados = snapshot.data!;
+          final pedido = dados['pedido'];
+          final itens = dados['itens'] as List<dynamic>;
+
+          final dateObj = DateTime.parse(pedido['data']);
+          final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(dateObj);
+          final total = double.parse(pedido['total'].toString());
+
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 600),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, offset: const Offset(0, 10)),
+                  ],
+                ),
+                padding: const EdgeInsets.all(30),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.receipt_long, size: 60, color: Colors.black87),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'GAMES JÁ! DELIVERY',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontFamily: 'Montserrat',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                    // Header Recibo
+                    Container(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black12, width: 2, style: BorderStyle.solid))), // Dashed is hard in pure container
+                      child: Column(
+                        children: [
+                          const Text('GAMES JÁ!', style: TextStyle(fontFamily: 'Montserrat', fontSize: 28, fontWeight: FontWeight.w900, color: Colors.black)),
+                          const SizedBox(height: 8),
+                          Text('Recibo do Pedido #${pedido['id']}', style: const TextStyle(fontSize: 18, color: Colors.black87, fontWeight: FontWeight.bold)),
+                          Text(formattedDate, style: const TextStyle(color: Colors.black54)),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'CNPJ: 00.000.000/0001-00',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                    const SizedBox(height: 20),
+                    // Cliente
+                    const Text('Dados do Cliente:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+                    Text('Nome: ${pedido['nome']}', style: const TextStyle(color: Colors.black87)),
+                    Text('Email: ${pedido['email']}', style: const TextStyle(color: Colors.black87)),
+                    const SizedBox(height: 20),
+                    // Itens
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      decoration: const BoxDecoration(
+                        border: Border(top: BorderSide(color: Colors.black12, width: 2), bottom: BorderSide(color: Colors.black12, width: 2)),
+                      ),
+                      child: Column(
+                        children: itens.map((item) {
+                          final preco = double.parse(item['preco_unitario'].toString());
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(child: Text('${item['quantidade']}x ${item['produto_nome']}', style: const TextStyle(color: Colors.black))),
+                                Text('R\$ ${(preco * item['quantidade']).toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    const Divider(color: Colors.black26, thickness: 1), // Usamos hr visual
+                    const SizedBox(height: 20),
+                    // Footer Total
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('TOTAL:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black)),
+                        Text('R\$ ${total.toStringAsFixed(2).replaceAll('.', ',')}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.accentColor)),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    const Text('Obrigado por comprar na Games Já!', textAlign: TextAlign.center, style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black54)),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Voltar aos Pedidos', style: TextStyle(color: Colors.white)),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              
-              Text('Data: ${order.date.day.toString().padLeft(2, '0')}/${order.date.month.toString().padLeft(2, '0')}/${order.date.year}', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-              Text('Hora: ${order.date.hour.toString().padLeft(2, '0')}:${order.date.minute.toString().padLeft(2, '0')}', style: const TextStyle(color: Colors.black87)),
-              Text('Cupom Fiscal / Pedido #${order.id}', style: const TextStyle(color: Colors.black87)),
-              
-              const SizedBox(height: 16),
-              const Divider(color: Colors.black26),
-              const SizedBox(height: 8),
-              
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(flex: 3, child: Text('QTD UN', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 5, child: Text('DESCRIÇÃO', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 3, child: Text('VL. UNIT.', textAlign: TextAlign.right, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12))),
-                  Expanded(flex: 3, child: Text('VL. ITEM', textAlign: TextAlign.right, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12))),
-                ],
-              ),
-              const SizedBox(height: 8),
-              
-              ...order.items.map((item) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: Text('${item.quantidade} UN', style: const TextStyle(color: Colors.black87, fontSize: 12))),
-                      Expanded(flex: 5, child: Text(item.titulo, style: const TextStyle(color: Colors.black87, fontSize: 12))),
-                      Expanded(flex: 3, child: Text('R\$ ${item.preco.toStringAsFixed(2).replaceAll('.', ',')}', textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 12))),
-                      Expanded(flex: 3, child: Text('R\$ ${(item.preco * item.quantidade).toStringAsFixed(2).replaceAll('.', ',')}', textAlign: TextAlign.right, style: const TextStyle(color: Colors.black87, fontSize: 12))),
-                    ],
-                  ),
-                );
-              }),
-              
-              const SizedBox(height: 16),
-              const Divider(color: Colors.black26),
-              const SizedBox(height: 16),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('TOTAL R\$', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
-                  Text(
-                    order.total.toStringAsFixed(2).replaceAll('.', ','),
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 32),
-              const Center(
-                child: Text(
-                  'Obrigado pela preferência!\nVolte sempre.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.black87, fontStyle: FontStyle.italic),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

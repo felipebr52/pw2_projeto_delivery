@@ -5,6 +5,7 @@ import 'package:proj_pw2/models/game.dart';
 import 'package:proj_pw2/models/promo_banner.dart';
 import 'package:proj_pw2/providers/cart_model.dart';
 import 'package:proj_pw2/services/game_repository.dart';
+import 'package:proj_pw2/services/api_service.dart';
 import 'package:proj_pw2/screens/login_screen.dart';
 import 'package:proj_pw2/screens/pedidos_screen.dart';
 import 'package:proj_pw2/screens/carrinho_screen.dart';
@@ -26,6 +27,7 @@ class _CardapioScreenState extends State<CardapioScreen> {
   List<String> _categorias = [];
   bool _isLoading = true;
   String? _errorMessage;
+  String _userName = '';
 
   List<Game> get filteredJogos {
     if (_selectedCategory == "Todos") return _allGames;
@@ -43,6 +45,8 @@ class _CardapioScreenState extends State<CardapioScreen> {
 
       final repository = GameRepository();
       
+      final user = await ApiService.getCurrentUser();
+      
       // Carrega tudo ao mesmo tempo (em paralelo) da "API"
       final results = await Future.wait([
         repository.getAllGames(),
@@ -51,6 +55,7 @@ class _CardapioScreenState extends State<CardapioScreen> {
       ]);
 
       setState(() {
+        _userName = user?['nome'] ?? 'Visitante';
         _allGames = results[0] as List<Game>;
         _banners = results[1] as List<PromoBanner>;
         _categorias = results[2] as List<String>;
@@ -76,27 +81,45 @@ class _CardapioScreenState extends State<CardapioScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('GAMES JÁ!'),
-        leading: PopupMenuButton<String>(
-          icon: const Icon(Icons.arrow_back),
-          onSelected: (value) {
-            if (value == 'login') {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-            } else if (value == 'pedidos') {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const PedidoScreen()));
-            }
-          },
-          itemBuilder: (BuildContext context) => [
-            const PopupMenuItem<String>(
-              value: 'login',
-              child: Text('Voltar ao Login'),
-            ),
-            const PopupMenuItem<String>(
-              value: 'pedidos',
-              child: Text('Ir para Pedidos'),
-            ),
-          ],
-        ),
+        automaticallyImplyLeading: false, // Removemos o botão back padrão caso exista
         actions: [
+          PopupMenuButton<String>(
+            offset: const Offset(0, 50),
+            color: const Color(0xFF24042E), // Cor mais sólida e escura para evitar a translucidez ruim
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Colors.white12), // Bordazinha fina
+            ),
+            icon: CircleAvatar(
+              backgroundColor: AppTheme.accentColor,
+              child: Text(
+                _userName.isNotEmpty ? _userName[0].toUpperCase() : '👤',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+            onSelected: (value) async {
+              if (value == 'pedidos') {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const PedidoScreen()));
+              } else if (value == 'logout') {
+                await ApiService.logout();
+                if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                enabled: false,
+                child: Text('Olá, $_userName', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+              ),
+              const PopupMenuItem<String>(
+                value: 'pedidos',
+                child: Text('📦 Meus Pedidos', style: TextStyle(color: Colors.white)),
+              ),
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Text('🚪 Sair', style: TextStyle(color: Colors.redAccent)),
+              ),
+            ],
+          ),
           Consumer<CartModel>(builder: (context, cart, _) {
             final count = cart.items.length;
             return Stack(
@@ -186,7 +209,9 @@ class _CardapioScreenState extends State<CardapioScreen> {
                             ),
                             // Se as imagens do banner existirem no projeto, elas aparecerão aqui:
                             image: DecorationImage(
-                              image: AssetImage(banner.imagemPath),
+                              image: banner.imagemPath.startsWith('http') 
+                                ? NetworkImage(banner.imagemPath) 
+                                : AssetImage(banner.imagemPath) as ImageProvider,
                               fit: BoxFit.cover,
                               onError: (exception, stackTrace) {}, // Ignora erro se imagem nao existir (fallback abaixo)
                             ),
@@ -199,11 +224,12 @@ class _CardapioScreenState extends State<CardapioScreen> {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                'PROMOÇÃO #${banner.id}',
+                                'R\$ ${banner.preco.toStringAsFixed(2).replaceAll('.', ',')}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontFamily: 'Montserrat',
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
                               ),
                             ),

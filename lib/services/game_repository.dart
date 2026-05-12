@@ -2,50 +2,22 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:proj_pw2/models/game.dart';
 import 'package:proj_pw2/models/promo_banner.dart';
+import 'package:flutter/foundation.dart';
 
 class GameRepository {
-  static const String baseUrl = 'http://10.0.2.2:3000';
+  static const String baseUrl = 'http://127.0.0.1:3000/api';
 
   Future<List<Game>> getAllGames() async {
-    // Retornando mock data
-    return [
-      Game(
-        titulo: "CyberPunk 2077",
-        categoria: "RPG",
-        preco: 199.90,
-        imagemPath: "assets/images/cyberpunk77.JPG",
-      ),
-      Game(
-        titulo: "FIFA 2023",
-        categoria: "Esportes",
-        preco: 299.90,
-        imagemPath: "assets/images/fifa2023.jpg",
-      ),
-      Game(
-        titulo: "Street Fighter VI",
-        categoria: "Luta",
-        preco: 249.90,
-        imagemPath: "assets/images/sf6.jpg",
-      ),
-      Game(
-        titulo: "Call of Duty",
-        categoria: "FPS",
-        preco: 349.90,
-        imagemPath: "assets/images/cod.jpg",
-      ),
-      Game(
-        titulo: "The Witcher 3",
-        categoria: "RPG",
-        preco: 149.90,
-        imagemPath: "assets/images/witcher3.jpg",
-      ),
-      Game(
-        titulo: "Mortal Kombat",
-        categoria: "Luta",
-        preco: 199.90,
-        imagemPath: "assets/images/mk.jpg",
-      ),
-    ];
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/produtos'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => Game.fromJson(json)).toList();
+      }
+    } catch (e) {
+      print('Erro ao buscar produtos da API: $e');
+    }
+    return [];
   }
 
   Future<List<Game>> getGamesByCategory(String category) async {
@@ -56,37 +28,30 @@ class GameRepository {
     return allGames.where((jogo) => jogo.categoria == category).toList();
   }
 
-  // Novo método para buscar os banners promocionais da API
   Future<List<PromoBanner>> getBanners() async {
-    // Quando a API estiver pronta, fará um http.get('$baseUrl/banners')
-    return [
-      PromoBanner(
-        id: "1",
-        imagemPath: "assets/images/banner_oferta1.jpg", 
-      ),
-      PromoBanner(
-        id: "2",
-        imagemPath: "assets/images/banner_lancamento.jpg",
-      ),
-      PromoBanner(
-        id: "3",
-        imagemPath: "assets/images/banner_fretegratis.jpg",
-      ),
-    ];
+    final allGames = await getAllGames();
+    if (allGames.isEmpty) return [];
+    
+    // Pegando até 3 jogos para destacar no banner usando imagens reais
+    return allGames.take(3).map((game) {
+      return PromoBanner(
+        id: game.id.toString(),
+        imagemPath: game.imagemPath,
+        preco: game.preco,
+      );
+    }).toList();
   }
 
-  // Novo método para buscar as categorias da API
   Future<List<String>> getCategories() async {
-    // Quando a API estiver pronta, fará um http.get('$baseUrl/categories')
-    // A string "Todos" normalmente é fixa no FrontEnd, mas deixaremos aqui como fallback.
+    final allGames = await getAllGames();
+    final categories = allGames.map((e) => e.categoria).toSet().toList();
+    
+    // Inserindo filtros extras fixos no topo
     return [
       "Todos",
       "Ofertas",
       "Lançamentos",
-      "RPG",
-      "Luta",
-      "FPS",
-      "Aventura", // Categoria nova simulada
+      ...categories,
     ];
   }
 }
